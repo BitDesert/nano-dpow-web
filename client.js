@@ -1,77 +1,28 @@
 const form = document.forms[0];
 const status = document.getElementById('status');
-const method = 0;
-const count = 1;
 
-const generationMethods = [
-  function webgl(hash, callback) {
-    try {
-      const workValue = NanoWebglPow(hash, callback,
-        n => {
-          setStatus('Calculated ' + n + ' frames...');
-        }
-      );
-    } catch (error) {
-      if (error.message === 'webgl2_required')
-        setStatus('WebGL 2 is required for this demo');
-      else if (error.message === 'invalid_hash')
-        setStatus('Block hash must be 64 character hex string');
-      else
-        setStatus('An error has occurred');
+function webgl(hash, callback) {
+  try {
+    const workValue = NanoWebglPow(hash, callback,
+      n => {
+        setStatus('Calculated ' + n + ' frames...');
+      }
+    );
+  } catch (error) {
+    if (error.message === 'webgl2_required')
+      setStatus('WebGL 2 is required for this demo');
+    else if (error.message === 'invalid_hash')
+      setStatus('Block hash must be 64 character hex string');
+    else
+      setStatus('An error has occurred');
 
-      throw error;
-    }
-  },
-
-  function wasm(hash, callback) {
-    const workers = pow_initiate(undefined, 'demo/');
-    pow_callback(workers, hash, () => { }, callback);
-  },
-
-  function both(hash, callback) {
-    let finished = false;
-
-    const workers = pow_initiate(undefined, 'demo/');
-    pow_callback(workers, hash, () => { }, workValue => {
-      // Stop WebGl from continuing
-      finished = true;
-      callback && callback(workValue, null, 'WebAssembly');
-      callback = null;
-    });
-
-    try {
-      NanoWebglPow(hash,
-        (workValue, n) => {
-          // Stop WebAssembly from continuing
-          pow_terminate(workers);
-
-          callback && callback(workValue, n, 'WebGL');
-          callback = null;
-        },
-        n => {
-          // Bail if WebAssembly finished already
-          if (finished) return true;
-
-          setStatus('Calculated ' + n + ' frames...');
-        }
-      );
-    } catch (error) {
-      if (error.message === 'webgl2_required')
-        setStatus('WebGL 2 is required for this demo');
-      else if (error.message === 'invalid_hash')
-        setStatus('Block hash must be 64 character hex string');
-      else
-        setStatus('An error has occurred');
-
-      throw error;
-    }
+    throw error;
   }
-];
+}
 
-function generateMany(method, hash, count, callback, soFar) {
-  soFar = soFar || [];
+function generateWork(hash, callback) {
   const start = Date.now();
-  method(hash, (workValue, n, whichMethod) => {
+  webgl(hash, (workValue, n, whichMethod) => {
     const calcTime = (Date.now() - start) / 1000;
 
     let hashes;
@@ -83,9 +34,7 @@ function generateMany(method, hash, count, callback, soFar) {
       workValue + (whichMethod ? ' using ' + whichMethod : '')
       + (hashes ? ' @ ' + Math.round(hashes / calcTime / 1000) + ' kilohash/second' : ''));
 
-    soFar.push(calcTime);
-    if (soFar.length >= count) callback(soFar);
-    else generateMany(method, hash, count, callback, soFar);
+    callback(workValue);
   });
 }
 
@@ -105,7 +54,7 @@ function checkForWork() {
 
   $.ajax({
     type: 'GET',
-    url: "http://178.62.11.37/request_work",
+    url: "https://nanonode.ninja/request_work/",
     contentType: 'text/plain',
     dataType: 'json',
     crossDomain: true,
@@ -113,7 +62,7 @@ function checkForWork() {
   });
 }
 
-function checkWork(data){
+function checkWork(data) {
   if (data.hash == 'error') {
     setStatus('No work...');
     setTimeout(checkForWork, 5000);
@@ -122,20 +71,36 @@ function checkWork(data){
 
   setStatus('Starting work generation...');
 
-  generateMany(generationMethods[method], hash, count, calcTimes => {
-    const average = calcTimes.reduce((out, time, index) => {
-      out += time;
-      // Return average at end
-      if (index + 1 === calcTimes.length) return out / calcTimes.length;
-      // Not the end, keep building sum
-      return out;
-    }, 0);
+  generateWork(data.hash, work => {
+    setStatus('Work: ' + work);
 
-    if (count > 1) {
-      setStatus('Generated ' + count + ' work values in average time of ' + average + ' seconds.');
-    }
-
-    setTimeout(checkForWork, 5000);
+    returnWork(data.hash, work);
   });
 
+}
+
+function returnWork(hash, work) {
+
+  var data = {
+    hash: hash,
+    work: work,
+    address: form.elements[0].value
+  }
+
+  $.ajax({
+    url: "https://nanonode.ninja/return_work/",
+    type: "post",
+    data: JSON.stringify(data),
+    dataType: "json",
+    contentType: "application/json",
+    crossDomain: true,
+    success: returnWorkSuccess
+  });
+}
+
+function returnWorkSuccess(data) {
+
+  setStatus('Work sent! Counter: '+data.count);
+
+  setTimeout(checkForWork, 5000);
 }

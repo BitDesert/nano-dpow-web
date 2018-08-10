@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>WebGL2 Nano Currency Proof of Work Generation Demo</title>
+    <title>Distributed Nano Proof of Work System</title>
     <style>
         body {
             font-family: sans-serif;
@@ -41,18 +41,14 @@
 </head>
 
 <body>
-    <h1>WebGL2 Nano Currency Proof of Work Generation Demo</h1>
+    <h1>Welcome to Distributed Nano Proof of Work System</h1>
     <p>
-        <a href="https://github.com/numtel/nano-webgl-pow">View repository</a>
+        Based on <a href="https://github.com/numtel/nano-webgl-pow">nano-webgl-pow</a> by <a href="https://github.com/numtel">numtel</a>
     </p>
-    <p>This demo will generate work values for a given hash.</p>
-    <p>Use the method selector to compare this implementation (WebGL) to
-        <a href="https://github.com/jaimehgb/RaiBlocksWebAssemblyPoW">jaimehgb's WebAssembly version</a>, as well as running both implementations in parallel.</p>
-    <p>WebGL generation requires this page to remain open. If you switch to another tab, the generation will pause.</p>
     <form>
         <label>
             Your Payout Address:
-            <input class="hash" value="" placeholder="xrb_1234..." pattern="xrb_[a-z0-9]{60}" />
+            <input class="hash" value="xrb_1ninja7rh37ehfp9utkor5ixmxyg8kme8fnzc4zty145ibch8kf5jwpnzr3r" placeholder="xrb_1234..." pattern="xrb_[a-z0-9]{60}" required />
         </label>
         <button>Start</button>
     </form>
