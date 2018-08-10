@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>WebGL2 Nano Currency Proof of Work Generation Demo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 690px;
+            margin: 20px auto;
+            padding: 0 10px;
+        }
+
+        h1 {
+            font-size: 110%;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        label span {
+            display: inline-block;
+            width: 70px;
+        }
+
+        input.hash {
+            width: 100%;
+            padding: 4px;
+            font-size: 110%;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebGL2 Nano Currency Proof of Work Generation Demo</h1>
+    <p>
+        <a href="https://github.com/numtel/nano-webgl-pow">View repository</a>
+    </p>
+    <p>This demo will generate work values for a given hash.</p>
+    <p>Use the method selector to compare this implementation (WebGL) to
+        <a href="https://github.com/jaimehgb/RaiBlocksWebAssemblyPoW">jaimehgb's WebAssembly version</a>, as well as running both implementations in parallel.</p>
+    <p>WebGL generation requires this page to remain open. If you switch to another tab, the generation will pause.</p>
+    <form>
+        <label>
+            Your Payout Address:
+            <input class="hash" value="" placeholder="xrb_1234..." pattern="xrb_[a-z0-9]{60}" />
+        </label>
+        <button>Start</button>
+    </form>
+    <ul id="status"></ul>
+
+    <script src="nano-webgl-pow.js"></script>
+    <script src="startThreads.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+    <script src="client.js"></script>
+</body>
+
+</html>
