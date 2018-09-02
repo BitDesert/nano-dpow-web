@@ -1,5 +1,8 @@
 const form = document.forms[0];
 const status = document.getElementById('status');
+var socket;
+var inited = false;
+var workcounter = 0;
 
 function webgl(hash, callback) {
   try {
@@ -24,60 +27,51 @@ function generateWork(hash, callback) {
   const start = Date.now();
   webgl(hash, (workValue, n, whichMethod) => {
     const calcTime = (Date.now() - start) / 1000;
+    workcounter++;
 
     let hashes;
     // Only WebGL method provides data for calculating hashes/second
     if (n) hashes = NanoWebglPow.width * NanoWebglPow.height * n;
 
-    setStatus(
-      'In ' + calcTime + ' seconds, found work value: ' +
-      workValue + (whichMethod ? ' using ' + whichMethod : '')
-      + (hashes ? ' @ ' + Math.round(hashes / calcTime / 1000) + ' kilohash/second' : ''));
+    var hashpower = Math.round(hashes / calcTime / 1000);
+
+    $('#hashpower').text(hashpower);
+    $('#lastwork').text(workValue);
+    $('#workcounter').text(workcounter);
+
+    setStatus('Waiting for work...');
 
     callback(workValue);
   });
 }
 
 function setStatus(text) {
-  status.innerHTML = '<li>' + text + '</li>' + status.innerHTML;
+  $('#statusbtn').html('<i class="fas fa-spinner fa-spin"></i> ' + text);
 }
 
 form.addEventListener('submit', e => {
   e.preventDefault();
+
+  // prevent double clicks
+  if (inited) { return }
+  inited = true;
+
   const start = Date.now();
-  const hash = form.elements[0].value;
+
   setStatus('Waiting for work...');
-  checkForWork();
-}, false);
 
-function checkForWork() {
+  socket = new WebSocket("wss://dpow.mynano.ninja/");
 
-  $.ajax({
-    type: 'GET',
-    url: "https://nanonode.ninja/request_work/",
-    contentType: 'text/plain',
-    dataType: 'json',
-    crossDomain: true,
-    success: checkWork
-  });
-}
+  socket.onmessage = function (event) {
+    setStatus('Starting work generation...');
 
-function checkWork(data) {
-  if (data.hash == 'error') {
-    setStatus('No work...');
-    setTimeout(checkForWork, 5000);
-    return
+    var data = JSON.parse(event.data);
+
+    generateWork(data.hash, work => {
+      returnWork(data.hash, work);
+    });
   }
-
-  setStatus('Starting work generation...');
-
-  generateWork(data.hash, work => {
-    setStatus('Work: ' + work);
-
-    returnWork(data.hash, work);
-  });
-
-}
+}, false);
 
 function returnWork(hash, work) {
 
@@ -87,20 +81,5 @@ function returnWork(hash, work) {
     address: form.elements[0].value
   }
 
-  $.ajax({
-    url: "https://nanonode.ninja/return_work/",
-    type: "post",
-    data: JSON.stringify(data),
-    dataType: "json",
-    contentType: "application/json",
-    crossDomain: true,
-    success: returnWorkSuccess
-  });
-}
-
-function returnWorkSuccess(data) {
-
-  setStatus('Work sent! Counter: '+data.count);
-
-  setTimeout(checkForWork, 5000);
+  socket.send(JSON.stringify(data))
 }
