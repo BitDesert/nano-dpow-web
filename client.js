@@ -62,6 +62,15 @@ form.addEventListener('submit', e => {
 
   socket = new WebSocket("wss://dpow.mynano.ninja/");
 
+  socket.onopen = function (event) {
+    var data = {
+      work_type: 'any',
+      address: form.elements[0].value
+    }
+  
+    socket.send(JSON.stringify(data))
+  };
+
   socket.onmessage = function (event) {
     setStatus('Starting work generation...');
 
