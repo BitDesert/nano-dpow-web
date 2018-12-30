@@ -58,7 +58,7 @@ form.addEventListener('submit', e => {
 
   const start = Date.now();
 
-  setStatus('Waiting for work...');
+  setStatus('Registering at server...');
 
   socket = new WebSocket("wss://dpow.mynano.ninja/");
 
@@ -72,13 +72,25 @@ form.addEventListener('submit', e => {
   };
 
   socket.onmessage = function (event) {
-    setStatus('Starting work generation...');
-
     var data = JSON.parse(event.data);
 
-    generateWork(data.hash, work => {
-      returnWork(data.hash, work);
-    });
+    if(data.status){
+      console.log('STATUS: ' + data.status);
+      if(data.status == 'success'){
+        setStatus('Waiting for work...');
+      }
+      
+    } else if(data.hash){
+      console.log('HASH: ' + data.hash);
+
+      setStatus('Starting work generation...');
+  
+      generateWork(data.hash, work => {
+        returnWork(data.hash, work);
+      });
+    } else {
+      console.log('UNKOWN: ' + data);
+    }
   }
 }, false);
 
