@@ -82,6 +82,8 @@ form.addEventListener('submit', e => {
       console.log('STATUS: ' + data.status);
       if (data.status == 'success') {
         setStatus('Waiting for work...');
+      } else {
+        console.log(data)
       }
 
     } else if (data.hash) {
