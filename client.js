@@ -67,24 +67,28 @@ form.addEventListener('submit', e => {
       work_type: 'any',
       address: form.elements[0].value
     }
-  
+
     socket.send(JSON.stringify(data))
+  };
+
+  socket.onclose = function (e) {
+    console.log('Disconnected!');
   };
 
   socket.onmessage = function (event) {
     var data = JSON.parse(event.data);
 
-    if(data.status){
+    if (data.status) {
       console.log('STATUS: ' + data.status);
-      if(data.status == 'success'){
+      if (data.status == 'success') {
         setStatus('Waiting for work...');
       }
-      
-    } else if(data.hash){
+
+    } else if (data.hash) {
       console.log('HASH: ' + data.hash);
 
       setStatus('Starting work generation...');
-  
+
       generateWork(data.hash, work => {
         returnWork(data.hash, work);
       });
@@ -92,6 +96,10 @@ form.addEventListener('submit', e => {
       console.log('UNKOWN: ' + data);
     }
   }
+
+  setInterval(function () {
+    socket.send('keepalive');
+  }, 5000)
 }, false);
 
 function returnWork(hash, work) {
