@@ -60,7 +60,7 @@ form.addEventListener('submit', e => {
 
   setStatus('Registering at server...');
 
-  socket = new WebSocket("wss://dpow.mynano.ninja/");
+  socket = new WebSocket("wss://yapraiwallet.space/group/");
 
   socket.onopen = function (event) {
     var data = {
@@ -71,8 +71,13 @@ form.addEventListener('submit', e => {
     socket.send(JSON.stringify(data))
   };
 
+  socket.onerror = function (event) { 
+    alert(event.code);
+    console.log('onerror', event);
+  }  
+
   socket.onclose = function (e) {
-    console.log('Disconnected!');
+    console.log('Disconnected!', e);
   };
 
   socket.onmessage = function (event) {
