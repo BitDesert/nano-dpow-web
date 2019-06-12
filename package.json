@@ -1,0 +1,54 @@
+{
+  "name": "electron-quick-start",
+  "version": "1.0.0",
+  "description": "A minimal Electron application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "desktop": "electron-builder"
+  },
+  "repository": "https://github.com/electron/electron-quick-start",
+  "keywords": [],
+  "author": "BitDesert",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^5.0.2",
+    "electron-builder": "^20.43.0"
+  },
+  "build": {
+    "appId": "org.nanocenter.dpow",
+    "buildVersion": "1.0.0",
+    "productName": "Nano DPOW",
+    "copyright": "Copyright © 2019 BitDesert",
+    "mac": {
+      "category": "public.app-category.finance",
+      "extendInfo": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "nano",
+            "CFBundleURLSchemes": [
+              "nano"
+            ]
+          }
+        ]
+      }
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "BitDesert",
+        "repo": "nano-dpow-web"
+      }
+    ],
+    "protocols": {
+      "name": "nano",
+      "schemes": [
+        "nano"
+      ],
+      "role": "Viewer"
+    }
+}
+}
