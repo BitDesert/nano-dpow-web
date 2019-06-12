@@ -1,4 +1,4 @@
-var client = mqtt.connect('mqtts://client:client@dpow.mynano.ninja')
+var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org')
 
 client.on("connect", function () {
   console.log('MQTT connected')
@@ -15,6 +15,7 @@ const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
 var inited = false;
+var is_working = false;
 var workcounter = 0;
 var payout_address = '';
 
@@ -99,11 +100,17 @@ form.addEventListener('submit', e => {
       var difficulty = splits[1]
       var work_type = topic_split[1]
 
-      console.log(block_hash, difficulty)
+      console.log('work', work_type, block_hash, difficulty)
 
-      generateWork(block_hash, work => {
-        returnWork(block_hash, work, work_type);
-      });
+      if (is_working) {
+        console.log('Already doing work...');
+      } else {
+        is_working = true;
+        generateWork(block_hash, work => {
+          returnWork(block_hash, work, work_type);
+          is_working = false;
+        });
+      }
 
     } else if (message_type == 'heartbeat') {
       $('#last_heartbeat').text(new Date().toLocaleString());
