@@ -1,3 +1,23 @@
+var client = mqtt.connect('mqtt://139.59.134.66:1883', {
+    username: 'client',
+    password: 'client'
+})
+
+client.subscribe("#")
+
+client.on("message", function (topic, payload) {
+    alert([topic, payload].join(": "))
+    //client.end()
+})
+
+client.on("connect", function () {
+    console.log('MQTT connected')
+})
+
+client.on("error", function (error) {
+    console.log('MQTT error:', error)
+})
+
 const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
