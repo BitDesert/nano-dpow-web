@@ -1,4 +1,4 @@
-var client = mqtt.connect('mqtts://client:client@dpow.mynano.ninja')
+var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org')
 
 client.on("connect", function () {
   console.log('MQTT connected')
@@ -99,7 +99,7 @@ form.addEventListener('submit', e => {
       var difficulty = splits[1]
       var work_type = topic_split[1]
 
-      console.log(block_hash, difficulty)
+      console.log('work', work_type, block_hash, difficulty)
 
       generateWork(block_hash, work => {
         returnWork(block_hash, work, work_type);
