@@ -2,6 +2,8 @@ var client = mqtt.connect('mqtt://client:client@139.59.134.66:9001')
 
 client.on("connect", function () {
   console.log('MQTT connected')
+  $('#connection_status').text('Connected');
+  client.subscribe('heartbeat')
 })
 
 client.on("error", function (error) {
@@ -14,6 +16,7 @@ const status = document.getElementById('status');
 var socket;
 var inited = false;
 var workcounter = 0;
+var payout_address = '';
 
 function webgl(hash, callback) {
   try {
@@ -67,68 +70,72 @@ form.addEventListener('submit', e => {
   if (inited) { return }
   inited = true;
 
-  client.subscribe("#")
-  
+  payout_address = form.elements[0].value;
+
+  console.log('Payout: ', payout_address)
+
+  client.subscribe([
+    'work/#',
+    'cancel/#',
+    'client/' + payout_address
+  ])
+
+  //client.subscribe('#')
+
   setStatus('Waiting for work...');
 
   client.on("message", function (topic, payload) {
-    console.log([topic, payload].join(": "))
+    payload = payload + ''
 
-    var message_type = topic.split('/')
+    var topic_split = topic.split('/')
+    var message_type = topic_split[0]
 
-    console.log(message_type)
-
-    if (message_type[0] == 'work') {
+    if (message_type == 'work') {
       setStatus('Starting work generation...');
 
       var splits = payload.split(',')
 
       var block_hash = splits[0]
       var difficulty = splits[1]
+      var work_type = topic_split[1]
 
       console.log(block_hash, difficulty)
 
       generateWork(block_hash, work => {
-        returnWork(block_hash, work);
+        returnWork(block_hash, work, work_type);
       });
-      
+
+    } else if (message_type == 'heartbeat') {
+      $('#last_heartbeat').text(new Date().toLocaleString());
+
+    } else if (message_type == 'statistics') {
+      console.log('statistics', topic_split, JSON.parse(payload))
+
+    } else if (message_type == 'client') {
+      console.log('client', topic_split, JSON.parse(payload))
+
+    } else if (message_type == 'cancel') {
+      console.log('cancel', topic_split, payload)
+
     } else {
       console.log('Unknown type: ', topic, payload)
-      
+
     }
   })
 
-  /*
-  socket.onmessage = function (event) {
-    var data = JSON.parse(event.data);
-
-    if (data.status) {
-      console.log('STATUS: ' + data.status);
-      if (data.status == 'success') {
-      } else {
-        console.log(data)
-      }
-
-    } else if (data.hash) {
-      console.log('HASH: ' + data.hash);
-    } else {
-      console.log('UNKOWN: ' + data);
-    }
-  }
-
-  setInterval(function () {
-    socket.send('keepalive');
-  }, 5000)
-  */
 }, false);
 
-function returnWork(hash, work) {
+function returnWork(block_hash, work, work_type) {
 
-  var data = {
-    hash: hash,
-    work: work,
-    address: form.elements[0].value
-  }
+  var topic = 'result/' + work_type;
 
-  socket.send(JSON.stringify(data))
+  var data = [
+    block_hash,
+    work,
+    payout_address
+  ]
+
+  console.log(topic, data)
+
+  client.publish(topic, data.join(','))
 }
