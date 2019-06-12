@@ -1,18 +1,12 @@
-var client = mqtt.connect('mqtt://test.mosquitto.org:8080')
-
-client.subscribe("#")
-
-client.on("message", function (topic, payload) {
-    console.log([topic, payload].join(": "))
-    //client.end()
-})
+var client = mqtt.connect('mqtt://client:client@139.59.134.66:9001')
 
 client.on("connect", function () {
-    console.log('MQTT connected')
+  console.log('MQTT connected')
 })
 
 client.on("error", function (error) {
-    console.log('MQTT error:', error)
+  alert('MQTT error:', error)
+  console.log('MQTT error:', error)
 })
 
 const form = document.forms[0];
@@ -73,49 +67,50 @@ form.addEventListener('submit', e => {
   if (inited) { return }
   inited = true;
 
-  const start = Date.now();
+  client.subscribe("#")
+  
+  setStatus('Waiting for work...');
 
-  setStatus('Registering at server...');
+  client.on("message", function (topic, payload) {
+    console.log([topic, payload].join(": "))
 
-  socket = new WebSocket("wss://yapraiwallet.space/group/");
+    var message_type = topic.split('/')
 
-  socket.onopen = function (event) {
-    var data = {
-      work_type: 'any',
-      address: form.elements[0].value
+    console.log(message_type)
+
+    if (message_type[0] == 'work') {
+      setStatus('Starting work generation...');
+
+      var splits = payload.split(',')
+
+      var block_hash = splits[0]
+      var difficulty = splits[1]
+
+      console.log(block_hash, difficulty)
+
+      generateWork(block_hash, work => {
+        returnWork(block_hash, work);
+      });
+      
+    } else {
+      console.log('Unknown type: ', topic, payload)
+      
     }
+  })
 
-    socket.send(JSON.stringify(data))
-  };
-
-  socket.onerror = function (event) { 
-    alert(event.code);
-    console.log('onerror', event);
-  }  
-
-  socket.onclose = function (e) {
-    console.log('Disconnected!', e);
-  };
-
+  /*
   socket.onmessage = function (event) {
     var data = JSON.parse(event.data);
 
     if (data.status) {
       console.log('STATUS: ' + data.status);
       if (data.status == 'success') {
-        setStatus('Waiting for work...');
       } else {
         console.log(data)
       }
 
     } else if (data.hash) {
       console.log('HASH: ' + data.hash);
-
-      setStatus('Starting work generation...');
-
-      generateWork(data.hash, work => {
-        returnWork(data.hash, work);
-      });
     } else {
       console.log('UNKOWN: ' + data);
     }
@@ -124,6 +119,7 @@ form.addEventListener('submit', e => {
   setInterval(function () {
     socket.send('keepalive');
   }, 5000)
+  */
 }, false);
 
 function returnWork(hash, work) {
