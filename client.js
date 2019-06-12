@@ -1,4 +1,4 @@
-var client = mqtt.connect('mqtt://client:client@139.59.134.66:9001')
+var client = mqtt.connect('mqtts://client:client@dpow.mynano.ninja')
 
 client.on("connect", function () {
   console.log('MQTT connected')
