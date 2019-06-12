@@ -1,12 +1,9 @@
-var client = mqtt.connect('mqtt://139.59.134.66:1883', {
-    username: 'client',
-    password: 'client'
-})
+var client = mqtt.connect('mqtt://test.mosquitto.org:8080')
 
 client.subscribe("#")
 
 client.on("message", function (topic, payload) {
-    alert([topic, payload].join(": "))
+    console.log([topic, payload].join(": "))
     //client.end()
 })
 
