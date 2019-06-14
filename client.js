@@ -102,7 +102,7 @@ form.addEventListener('submit', e => {
   client.subscribe([
     'work/#',
     'cancel/#',
-    'client/' + payout_address
+    'client/#'
   ])
 
   //client.subscribe('#')
