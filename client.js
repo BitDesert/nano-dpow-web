@@ -1,3 +1,20 @@
+axios
+  .post('http://127.0.0.1:7000/',
+    {
+      action: 'work_validate',
+      "work": "2bf29ef00786a6bc",  
+      "hash": "718CC2121C3E641059BC1C2CFC45666C99E8AE922F7A807B7D07B62C995D79E2"
+    }
+  )
+  .then(function (response) {
+    console.log('response', response);
+  })
+  .catch(function (error) {
+      console.log('error', JSON.parse(JSON.stringify(error)));
+    
+  });
+
+
 var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
 
 client.on("connect", function () {
@@ -72,6 +89,7 @@ function checkForWork() {
   if (work_cache.length > 0) {
     console.log('Found something in work cache, starting...')
     var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+    work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
 
     is_working = randomWork.block_hash;
     generateWork(randomWork.block_hash, work => {
