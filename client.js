@@ -15,15 +15,22 @@ const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
 var inited = false;
-var is_working = false;
+var is_working = '';
 var workcounter = 0;
 var payout_address = '';
+var work_cache = [];
 
 function webgl(hash, callback) {
   try {
     const workValue = NanoWebglPow(hash, callback,
       n => {
         setStatus('Calculated ' + n + ' frames...');
+        if (is_working == '') {
+          console.log('Cancelled')
+          setStatus('Waiting for work...');
+          checkForWork()
+          return true
+        }
       }
     );
   } catch (error) {
@@ -39,6 +46,7 @@ function webgl(hash, callback) {
 }
 
 function generateWork(hash, callback) {
+  console.log('Starting work on ' + hash)
   const start = Date.now();
   webgl(hash, (workValue, n, whichMethod) => {
     const calcTime = (Date.now() - start) / 1000;
@@ -58,6 +66,22 @@ function generateWork(hash, callback) {
 
     callback(workValue);
   });
+}
+
+function checkForWork() {
+  if (work_cache.length > 0) {
+    console.log('Found something in work cache, starting...')
+    var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+
+    is_working = randomWork.block_hash;
+    generateWork(randomWork.block_hash, work => {
+      returnWork(randomWork.block_hash, work, randomWork.work_type);
+      is_working = '';
+      checkForWork()
+    });
+  } else {
+    console.log('Nothing in work cache')
+  }
 }
 
 function setStatus(text) {
@@ -104,11 +128,18 @@ form.addEventListener('submit', e => {
 
       if (is_working) {
         console.log('Already doing work...');
+        work_cache.push({
+          block_hash: block_hash,
+          difficulty: difficulty,
+          work_type: work_type
+        })
+
       } else {
-        is_working = true;
+        is_working = block_hash;
         generateWork(block_hash, work => {
           returnWork(block_hash, work, work_type);
-          is_working = false;
+          is_working = '';
+          checkForWork()
         });
       }
 
@@ -123,6 +154,13 @@ form.addEventListener('submit', e => {
 
     } else if (message_type == 'cancel') {
       console.log('cancel', topic_split, payload)
+      if (payload == is_working) {
+        console.log('Currently working, cancel')
+        is_working = '';
+      } else if (work_cache.some(e => e.block_hash === payload)) {
+        console.log('In work cache, removing')
+        work_cache = work_cache.filter(e => e.block_hash !== payload);
+      }
 
     } else {
       console.log('Unknown type: ', topic, payload)

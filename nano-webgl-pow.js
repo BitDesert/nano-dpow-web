@@ -289,7 +289,7 @@
         gl.uniform4uiv(work1Location, Array.from(work1));
         
         // Check with progressCallback every 100 frames
-        if(n%100===0 && typeof progressCallback === 'function' && progressCallback(n))
+        if(n%10===0 && typeof progressCallback === 'function' && progressCallback(n))
           return;
     
         gl.clear(gl.COLOR_BUFFER_BIT);
