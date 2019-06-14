@@ -2,16 +2,20 @@ axios
   .post('http://127.0.0.1:7000/',
     {
       action: 'work_validate',
-      "work": "2bf29ef00786a6bc",  
+      "work": "2bf29ef00786a6bc",
       "hash": "718CC2121C3E641059BC1C2CFC45666C99E8AE922F7A807B7D07B62C995D79E2"
+    }, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     }
   )
   .then(function (response) {
     console.log('response', response);
   })
   .catch(function (error) {
-      console.log('error', JSON.parse(JSON.stringify(error)));
-    
+    console.log('error', JSON.parse(JSON.stringify(error)));
+
   });
 
 
@@ -19,7 +23,7 @@ var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
 
 client.on("connect", function () {
   console.log('MQTT connected')
-  $('#connection_status').text('Connected');
+  document.getElementById('connection_status').textContent = 'Connected';
   client.subscribe('heartbeat')
 })
 
@@ -75,9 +79,9 @@ function generateWork(hash, callback) {
 
     var hashpower = Math.round(hashes / calcTime / 1000);
 
-    $('#hashpower').text(hashpower);
-    $('#lastwork').text(workValue);
-    $('#workcounter').text(workcounter);
+    document.getElementById('hashpower').textContent = hashpower;
+    document.getElementById('lastwork').textContent = workValue;
+    document.getElementById('workcounter').textContent = workcounter;
 
     setStatus('Waiting for work...');
 
@@ -103,7 +107,7 @@ function checkForWork() {
 }
 
 function setStatus(text) {
-  $('#statusbtn').html('<i class="fas fa-spinner fa-spin"></i> ' + text);
+  document.getElementById('statusbtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + text;
 }
 
 form.addEventListener('submit', e => {
@@ -145,7 +149,7 @@ form.addEventListener('submit', e => {
       console.log('work', work_type, block_hash, difficulty)
 
       if (is_working) {
-        console.log('Already doing work...');
+        console.log('Already doing work, adding to work cache...');
         work_cache.push({
           block_hash: block_hash,
           difficulty: difficulty,
@@ -162,7 +166,7 @@ form.addEventListener('submit', e => {
       }
 
     } else if (message_type == 'heartbeat') {
-      $('#last_heartbeat').text(new Date().toLocaleString());
+      document.getElementById('last_heartbeat').textContent = new Date().toLocaleString();
 
     } else if (message_type == 'statistics') {
       console.log('statistics', topic_split, JSON.parse(payload))
