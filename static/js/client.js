@@ -1,24 +1,3 @@
-axios
-  .post('http://127.0.0.1:7000/',
-    {
-      action: 'work_validate',
-      "work": "2bf29ef00786a6bc",
-      "hash": "718CC2121C3E641059BC1C2CFC45666C99E8AE922F7A807B7D07B62C995D79E2"
-    }, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    }
-  )
-  .then(function (response) {
-    console.log('response', response);
-  })
-  .catch(function (error) {
-    console.log('error', JSON.parse(JSON.stringify(error)));
-
-  });
-
-
 var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
 
 client.on("connect", function () {
