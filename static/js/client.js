@@ -73,12 +73,11 @@ function initMqtt(){
       rewardcounter++;
 
     } else if (message_type == 'cancel') {
-      console.log('cancel', topic_split, payload)
       if (payload == is_working) {
-        console.log('Currently working, cancel')
+        console.log('Currently working, cancel ' + payload)
         is_working = '';
       } else if (work_cache.some(e => e.block_hash === payload)) {
-        console.log('In work cache, removing')
+        console.log('In work cache, removing ' + payload)
         work_cache = work_cache.filter(e => e.block_hash !== payload);
       }
 
