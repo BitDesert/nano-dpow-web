@@ -17,6 +17,7 @@ var socket;
 var inited = false;
 var is_working = '';
 var workcounter = 0;
+var rewardcounter = 0;
 var payout_address = '';
 var work_cache = [];
 
@@ -61,6 +62,7 @@ function generateWork(hash, callback) {
     document.getElementById('hashpower').textContent = hashpower;
     document.getElementById('lastwork').textContent = workValue;
     document.getElementById('workcounter').textContent = workcounter;
+    document.getElementById('rewardcounter').textContent = rewardcounter;
 
     setStatus('Waiting for work...');
 
@@ -103,10 +105,8 @@ form.addEventListener('submit', e => {
   client.subscribe([
     'work/#',
     'cancel/#',
-    'client/#'
+    'client/'+ payout_address
   ])
-
-  //client.subscribe('#')
 
   setStatus('Waiting for work...');
 
@@ -152,6 +152,7 @@ form.addEventListener('submit', e => {
 
     } else if (message_type == 'client') {
       console.log('client', topic_split, JSON.parse(payload))
+      rewardcounter++;
 
     } else if (message_type == 'cancel') {
       console.log('cancel', topic_split, payload)
