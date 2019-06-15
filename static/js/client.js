@@ -1,16 +1,3 @@
-var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
-
-client.on("connect", function () {
-  console.log('MQTT connected')
-  document.getElementById('connection_status').textContent = 'Connected';
-  client.subscribe('heartbeat')
-})
-
-client.on("error", function (error) {
-  alert('MQTT error:', error)
-  console.log('MQTT error:', error)
-})
-
 const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
@@ -19,6 +6,87 @@ var is_working = '';
 var workcounter = 0;
 var payout_address = '';
 var work_cache = [];
+
+var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
+
+client.on("connect", function () {
+  console.log('MQTT connected')
+  document.getElementById('connection_status').textContent = 'Connected';
+
+  initMqtt();
+})
+
+client.on("error", function (error) {
+  alert('MQTT error:', error)
+  console.log('MQTT error:', error)
+})
+
+function initMqtt(){
+  client.subscribe([
+    'work/#',
+    'cancel/#',
+    'client/#',
+    'heartbeat'
+  ])
+
+  client.on("message", function (topic, payload) {
+    payload = payload + ''
+
+    var topic_split = topic.split('/')
+    var message_type = topic_split[0]
+
+    if (message_type == 'work') {
+      var splits = payload.split(',')
+
+      var block_hash = splits[0]
+      var difficulty = splits[1]
+      var work_type = topic_split[1]
+
+      console.log('work', work_type, block_hash, difficulty)
+
+      if (is_working || !inited) {
+        console.log('Got work, adding to work cache...');
+        work_cache.push({
+          block_hash: block_hash,
+          difficulty: difficulty,
+          work_type: work_type
+        })
+
+      } else {
+        is_working = block_hash;
+        generateWork(block_hash, work => {
+          returnWork(block_hash, work, work_type);
+          is_working = '';
+          checkForWork()
+        });
+      }
+
+    } else if (message_type == 'heartbeat') {
+      document.getElementById('last_heartbeat').textContent = new Date().toLocaleString();
+
+    } else if (message_type == 'statistics') {
+      console.log('statistics', topic_split, JSON.parse(payload))
+
+    } else if (message_type == 'client') {
+      console.log('client', topic_split, JSON.parse(payload))
+
+    } else if (message_type == 'cancel') {
+      console.log('cancel', topic_split, payload)
+      if (payload == is_working) {
+        console.log('Currently working, cancel')
+        is_working = '';
+      } else if (work_cache.some(e => e.block_hash === payload)) {
+        console.log('In work cache, removing')
+        work_cache = work_cache.filter(e => e.block_hash !== payload);
+      }
+
+    } else {
+      console.log('Unknown type: ', topic, payload)
+
+    }
+  })
+
+}
 
 function webgl(hash, callback) {
   try {
@@ -74,6 +142,8 @@ function checkForWork() {
     var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
     work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
 
+    setStatus('Starting work generation...');
+
     is_working = randomWork.block_hash;
     generateWork(randomWork.block_hash, work => {
       returnWork(randomWork.block_hash, work, randomWork.work_type);
@@ -100,74 +170,9 @@ form.addEventListener('submit', e => {
 
   console.log('Payout: ', payout_address)
 
-  client.subscribe([
-    'work/#',
-    'cancel/#',
-    'client/#'
-  ])
-
-  //client.subscribe('#')
+  checkForWork()
 
   setStatus('Waiting for work...');
-
-  client.on("message", function (topic, payload) {
-    payload = payload + ''
-
-    var topic_split = topic.split('/')
-    var message_type = topic_split[0]
-
-    if (message_type == 'work') {
-      setStatus('Starting work generation...');
-
-      var splits = payload.split(',')
-
-      var block_hash = splits[0]
-      var difficulty = splits[1]
-      var work_type = topic_split[1]
-
-      console.log('work', work_type, block_hash, difficulty)
-
-      if (is_working) {
-        console.log('Already doing work, adding to work cache...');
-        work_cache.push({
-          block_hash: block_hash,
-          difficulty: difficulty,
-          work_type: work_type
-        })
-
-      } else {
-        is_working = block_hash;
-        generateWork(block_hash, work => {
-          returnWork(block_hash, work, work_type);
-          is_working = '';
-          checkForWork()
-        });
-      }
-
-    } else if (message_type == 'heartbeat') {
-      document.getElementById('last_heartbeat').textContent = new Date().toLocaleString();
-
-    } else if (message_type == 'statistics') {
-      console.log('statistics', topic_split, JSON.parse(payload))
-
-    } else if (message_type == 'client') {
-      console.log('client', topic_split, JSON.parse(payload))
-
-    } else if (message_type == 'cancel') {
-      console.log('cancel', topic_split, payload)
-      if (payload == is_working) {
-        console.log('Currently working, cancel')
-        is_working = '';
-      } else if (work_cache.some(e => e.block_hash === payload)) {
-        console.log('In work cache, removing')
-        work_cache = work_cache.filter(e => e.block_hash !== payload);
-      }
-
-    } else {
-      console.log('Unknown type: ', topic, payload)
-
-    }
-  })
 
 }, false);
 
