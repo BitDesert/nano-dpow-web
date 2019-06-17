@@ -288,7 +288,7 @@
         gl.uniform4uiv(work0Location, Array.from(work0));
         gl.uniform4uiv(work1Location, Array.from(work1));
         
-        // Check with progressCallback every 100 frames
+        // Check with progressCallback every 10 frames
         if(n%10===0 && typeof progressCallback === 'function' && progressCallback(n))
           return;
     
