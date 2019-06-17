@@ -147,7 +147,15 @@ function generateWork(hash, callback) {
 function checkForWork() {
   if (work_cache.length > 0) {
     console.log('Found something in work cache, starting...')
-    var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+
+    var ondemand_work = work_cache.filter(e => e.work_type == 'ondemand');
+    if(ondemand_work.length > 0){
+      console.log('We have ondemand work, prioritize it')
+      var randomWork = ondemand_work[Math.floor(Math.random() * ondemand_work.length)];
+    } else {
+      var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+    }
+
     work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
 
     setStatus('Starting work generation...');
