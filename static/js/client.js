@@ -8,6 +8,7 @@ var workcounter = 0;
 var rewardcounter = 0;
 var payout_address = '';
 var work_cache = [];
+var webgl_pow = null;
 
 // connect to mqtt/websocket server
 var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
@@ -16,6 +17,7 @@ client.on("connect", function () {
   console.log('MQTT connected')
   document.getElementById('connection_status').textContent = 'Connected';
 
+  initWebGL();
   initMqtt();
 })
 
@@ -98,9 +100,26 @@ function initMqtt(){
 
 }
 
+function initWebGL() {
+  if( (webgl_pow != null) && (webgl_pow.available === true) ) {
+    return
+  }
+
+  try {
+    webgl_pow = NanoWebglPow()
+  } catch (error) {
+    if (error.message === 'webgl2_required')
+      setStatus('WebGL 2 is required to calculate Proof of Work');
+    else
+      setStatus('An error has occurred');
+
+    throw error;
+  }
+}
+
 function webgl(hash, callback) {
   try {
-    const workValue = NanoWebglPow(hash, callback,
+    const workValue = webgl_pow.calculate(hash, callback,
       n => {
         setStatus('Calculated ' + n + ' frames...');
         if (is_working == '') {
@@ -111,8 +130,8 @@ function webgl(hash, callback) {
       }
     );
   } catch (error) {
-    if (error.message === 'webgl2_required')
-      setStatus('WebGL 2 is required for this demo');
+    if (error.message === 'instance_unavailable')
+      setStatus('WebGL PoW instance has not been initialized');
     else if (error.message === 'invalid_hash')
       setStatus('Block hash must be 64 character hex string');
     else
@@ -145,32 +164,34 @@ function generateWork(hash, callback) {
 }
 
 function checkForWork() {
-  if (work_cache.length > 0) {
-    console.log('Found something in work cache, starting...')
+  initWebGL();
 
-    var ondemand_work = work_cache.filter(e => e.work_type == 'ondemand');
-    if(ondemand_work.length > 0){
-      console.log('We have ondemand work, prioritize it')
-      var randomWork = ondemand_work[Math.floor(Math.random() * ondemand_work.length)];
-    } else {
-      var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
-    }
-
-    work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
-
-    setStatus('Starting work generation...');
-
-    is_working = randomWork.block_hash;
-    generateWork(randomWork.block_hash, work => {
-      returnWork(randomWork.block_hash, work, randomWork.work_type);
-      is_working = '';
-      checkForWork()
-    });
-  } else {
+  if (work_cache.length < 1) {
     console.log('Nothing in work cache')
-
     setStatus('Waiting for work...');
+    return
   }
+
+  console.log('Found something in work cache, starting...')
+
+  var ondemand_work = work_cache.filter(e => e.work_type == 'ondemand');
+  if(ondemand_work.length > 0){
+    console.log('We have ondemand work, prioritize it')
+    var randomWork = ondemand_work[Math.floor(Math.random() * ondemand_work.length)];
+  } else {
+    var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+  }
+
+  work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
+
+  setStatus('Starting work generation...');
+
+  is_working = randomWork.block_hash;
+  generateWork(randomWork.block_hash, work => {
+    returnWork(randomWork.block_hash, work, randomWork.work_type);
+    is_working = '';
+    checkForWork()
+  });
 }
 
 function setStatus(text) {

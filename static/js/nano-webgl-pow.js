@@ -28,8 +28,8 @@
       }
       return out;
     }
-    
-    function calculate(hashHex, callback, progressCallback) {
+
+    function init() {
       const canvas = document.createElement('canvas');
     
       canvas.width = window.NanoWebglPow.width;
@@ -40,48 +40,45 @@
       if(!gl)
         throw new Error('webgl2_required');
     
-      if(!/^[A-F-a-f0-9]{64}$/.test(hashHex))
-        throw new Error('invalid_hash');
-    
       gl.clearColor(0, 0, 0, 1);
-    
-      const reverseHex = hex_reverse(hashHex);
-    
+
       // Vertext Shader
       const vsSource = `#version 300 es
         precision highp float;
         layout (location=0) in vec4 position;
         layout (location=1) in vec2 uv;
-    
+      
         out vec2 uv_pos;
-    
+      
         void main() {
           uv_pos = uv;
           gl_Position = position;
         }`;
-    
+      
       // Fragment shader
       const fsSource = `#version 300 es
         precision highp float;
         precision highp int;
-    
+      
         in vec2 uv_pos;
         out vec4 fragColor;
-    
+      
         // Random work values
         // First 2 bytes will be overwritten by texture pixel position
         // Second 2 bytes will be modified if the canvas size is greater than 256x256
         uniform uvec4 u_work0;
         // Last 4 bytes remain as generated externally
         uniform uvec4 u_work1;
-    
+
+        uniform uint u_reverseHex[8];
+      
         // Defined separately from uint v[32] below as the original value is required
         // to calculate the second uint32 of the digest for threshold comparison
         #define BLAKE2B_IV32_1 0x6A09E667u
-    
+      
         // Both buffers represent 16 uint64s as 32 uint32s
         // because that's what GLSL offers, just like Javascript
-    
+      
         // Compression buffer, intialized to 2 instances of the initialization vector
         // The following values have been modified from the BLAKE2B_IV:
         // OUTLEN is constant 8 bytes
@@ -103,7 +100,7 @@
         );
         // Input data buffer
         uint m[32];
-    
+      
         // These are offsets into the input data buffer for each mixing step.
         // They are multiplied by 2 from the original SIGMA values in
         // the C reference implementation, which refered to uint64s.
@@ -117,7 +114,7 @@
           26,0,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,28,20,8,16,18,30,26,12,
           2,24,0,4,22,14,10,6
         );
-    
+      
         // 64-bit unsigned addition within the compression buffer
         // Sets v[a,a+1] += b
         // b0 is the low 32 bits of b, b1 represents the high 32 bits
@@ -134,44 +131,44 @@
         void add_uint64 (int a, int b) {
           add_uint64(a, v[b], v[b+1]);
         }
-    
+      
         // G Mixing function
         void B2B_G (int a, int b, int c, int d, int ix, int iy) {
           add_uint64(a, b);
           add_uint64(a, m[ix], m[ix + 1]);
-    
+      
           // v[d,d+1] = (v[d,d+1] xor v[a,a+1]) rotated to the right by 32 bits
           uint xor0 = v[d] ^ v[a];
           uint xor1 = v[d + 1] ^ v[a + 1];
           v[d] = xor1;
           v[d + 1] = xor0;
-    
+      
           add_uint64(c, d);
-    
+      
           // v[b,b+1] = (v[b,b+1] xor v[c,c+1]) rotated right by 24 bits
           xor0 = v[b] ^ v[c];
           xor1 = v[b + 1] ^ v[c + 1];
           v[b] = (xor0 >> 24) ^ (xor1 << 8);
           v[b + 1] = (xor1 >> 24) ^ (xor0 << 8);
-    
+      
           add_uint64(a, b);
           add_uint64(a, m[iy], m[iy + 1]);
-    
+      
           // v[d,d+1] = (v[d,d+1] xor v[a,a+1]) rotated right by 16 bits
           xor0 = v[d] ^ v[a];
           xor1 = v[d + 1] ^ v[a + 1];
           v[d] = (xor0 >> 16) ^ (xor1 << 16);
           v[d + 1] = (xor1 >> 16) ^ (xor0 << 16);
-    
+      
           add_uint64(c, d);
-    
+      
           // v[b,b+1] = (v[b,b+1] xor v[c,c+1]) rotated right by 63 bits
           xor0 = v[b] ^ v[c];
           xor1 = v[b + 1] ^ v[c + 1];
           v[b] = (xor1 >> 31) ^ (xor0 << 1);
           v[b + 1] = (xor0 >> 31) ^ (xor1 << 1);
         }
-    
+      
         void main() {
           int i;
           uint uv_x = uint(uv_pos.x * ${canvas.width - 1}.);
@@ -180,24 +177,24 @@
           uint y_pos = uv_y % 256u;
           uint x_index = (uv_x - x_pos) / 256u;
           uint y_index = (uv_y - y_pos) / 256u;
-    
+      
           // First 2 work bytes are the x,y pos within the 256x256 area, the next
           //  two bytes are modified from the random generated value, XOR'd with
           //   the x,y area index of where this pixel is located
           m[0] = (x_pos ^ (y_pos << 8) ^ ((u_work0.b ^ x_index) << 16) ^ ((u_work0.a ^ y_index) << 24));
           // Remaining bytes are un-modified from the random generated value
           m[1] = (u_work1.r ^ (u_work1.g << 8) ^ (u_work1.b << 16) ^ (u_work1.a << 24));
-    
+      
           // Block hash
-          m[2] = 0x${reverseHex.slice(56,64)}u;
-          m[3] = 0x${reverseHex.slice(48,56)}u;
-          m[4] = 0x${reverseHex.slice(40,48)}u;
-          m[5] = 0x${reverseHex.slice(32,40)}u;
-          m[6] = 0x${reverseHex.slice(24,32)}u;
-          m[7] = 0x${reverseHex.slice(16,24)}u;
-          m[8] = 0x${reverseHex.slice(8,16)}u;
-          m[9] = 0x${reverseHex.slice(0,8)}u;
-    
+          m[2] = u_reverseHex[7];
+          m[3] = u_reverseHex[6];
+          m[4] = u_reverseHex[5];
+          m[5] = u_reverseHex[4];
+          m[6] = u_reverseHex[3];
+          m[7] = u_reverseHex[2];
+          m[8] = u_reverseHex[1];
+          m[9] = u_reverseHex[0];
+      
           // twelve rounds of mixing
           for(i=0;i<12;i++) {
             B2B_G(0, 8, 16, 24, SIGMA82[i * 16 + 0], SIGMA82[i * 16 + 1]);
@@ -209,7 +206,7 @@
             B2B_G(4, 14, 16, 26, SIGMA82[i * 16 + 12], SIGMA82[i * 16 + 13]);
             B2B_G(6, 8, 18, 28, SIGMA82[i * 16 + 14], SIGMA82[i * 16 + 15]);
           }
-    
+      
           // Threshold test, first 4 bytes not significant,
           //  only calculate digest of the second 4 bytes
           if((BLAKE2B_IV32_1 ^ v[1] ^ v[17]) > 0xFFFFFFC0u) {
@@ -222,35 +219,35 @@
             );
           }
         }`;
-    
+      
       const vertexShader = gl.createShader(gl.VERTEX_SHADER);
       gl.shaderSource(vertexShader, vsSource);
       gl.compileShader(vertexShader);
-    
+      
       if(!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS))
         throw gl.getShaderInfoLog(vertexShader);
-    
+      
       const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
       gl.shaderSource(fragmentShader, fsSource);
       gl.compileShader(fragmentShader);
-    
+      
       if(!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS))
         throw gl.getShaderInfoLog(fragmentShader);
-    
+      
       const program = gl.createProgram();
       gl.attachShader(program, vertexShader);
       gl.attachShader(program, fragmentShader);
       gl.linkProgram(program);
-    
+      
       if(!gl.getProgramParameter(program, gl.LINK_STATUS))
         throw gl.getProgramInfoLog(program);
-    
+      
       gl.useProgram(program);
-    
+      
       // Construct simple 2D geometry
       const triangleArray = gl.createVertexArray();
       gl.bindVertexArray(triangleArray);
-    
+      
       // Vertex Positions, 2 triangles
       const positions = new Float32Array([
         -1,-1,0, -1,1,0, 1,1,0,
@@ -261,7 +258,7 @@
       gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
       gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(0);
-    
+      
       // Texture Positions
       const uvPosArray = new Float32Array([
         1,1, 1,0, 0,0,   0,1, 0,0, 1,1
@@ -271,57 +268,82 @@
       gl.bufferData(gl.ARRAY_BUFFER, uvPosArray, gl.STATIC_DRAW);
       gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(1);
-    
+      
+      const reverseHexLocation = gl.getUniformLocation(program, 'u_reverseHex')
       const work0Location = gl.getUniformLocation(program, 'u_work0');
       const work1Location = gl.getUniformLocation(program, 'u_work1');
-    
+      
       // Draw output until success or progressCallback says to stop
-      const work0 = new Uint8Array(4);
-      const work1 = new Uint8Array(4);
+      let work0 = new Uint8Array(4);
+      let work1 = new Uint8Array(4);
       let n=0;
-    
-      function draw() {
-        n++;
-        window.crypto.getRandomValues(work0);
-        window.crypto.getRandomValues(work1);
-    
-        gl.uniform4uiv(work0Location, Array.from(work0));
-        gl.uniform4uiv(work1Location, Array.from(work1));
+
+      let instance = {
+        available: true,
+        calculate: function calculate(hashHex, callback, progressCallback) {
+          if(instance.available !== true)
+            throw new Error('instance_unavailable')
+
+          if(!/^[A-F-a-f0-9]{64}$/.test(hashHex))
+            throw new Error('invalid_hash');
+
+          instance.available = false
         
-        // Check with progressCallback every 10 frames
-        if(n%10===0 && typeof progressCallback === 'function' && progressCallback(n))
-          return;
-    
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-        const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
-        gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    
-        // Check the pixels for any success
-        for(let i=0;i<pixels.length;i+=4) {
-          if(pixels[i] !== 0) {
-            // Return the work value with the custom bits
-            typeof callback === 'function' &&
-              callback(
-                array_hex(work1, 0, 4) +
-                array_hex([
-                  pixels[i+2],
-                  pixels[i+3],
-                  work0[2] ^ (pixels[i]-1),
-                  work0[3] ^ (pixels[i+1]-1)
-                ], 0, 4), n);
-            return;
+          const reverseHex = hex_reverse(hashHex);
+
+          // Write reverse hex values to uniform
+          let reverseHexValues = []
+          for(let offset = 0; offset < 64; offset += 8) {
+            reverseHexValues.push( parseInt( reverseHex.slice(offset, offset + 8), 16 ) )
           }
+          gl.uniform1uiv(reverseHexLocation, reverseHexValues, 0, 8)
+        
+          function draw() {
+            n++;
+            window.crypto.getRandomValues(work0);
+            window.crypto.getRandomValues(work1);
+        
+            gl.uniform4uiv(work0Location, Array.from(work0));
+            gl.uniform4uiv(work1Location, Array.from(work1));
+            
+            // Check with progressCallback every 10 frames
+            if(n%10===0 && typeof progressCallback === 'function' && progressCallback(n))
+              return;
+        
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+            gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        
+            // Check the pixels for any success
+            for(let i=0;i<pixels.length;i+=4) {
+              if(pixels[i] !== 0) {
+                // Return the work value with the custom bits
+                typeof callback === 'function' &&
+                  callback(
+                    array_hex(work1, 0, 4) +
+                    array_hex([
+                      pixels[i+2],
+                      pixels[i+3],
+                      work0[2] ^ (pixels[i]-1),
+                      work0[3] ^ (pixels[i+1]-1)
+                    ], 0, 4), n);
+                return;
+              }
+            }
+            // Nothing found yet, try again
+            window.requestAnimationFrame(draw);
+          }
+        
+          // Begin generation
+          window.requestAnimationFrame(draw);
         }
-        // Nothing found yet, try again
-        window.requestAnimationFrame(draw);
       }
-    
-      // Begin generation
-      window.requestAnimationFrame(draw);
+
+      return instance;
     }
     
-    window.NanoWebglPow = calculate;
+    window.NanoWebglPow = init;
     // Both width and height must be multiple of 256, (one byte)
     // but do not need to be the same,
     // matching GPU capabilities is the aim
