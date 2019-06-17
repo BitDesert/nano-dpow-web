@@ -1,3 +1,4 @@
+// global variables
 const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
@@ -8,6 +9,7 @@ var rewardcounter = 0;
 var payout_address = '';
 var work_cache = [];
 
+// connect to mqtt/websocket server
 var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
 
 client.on("connect", function () {
@@ -23,6 +25,7 @@ client.on("error", function (error) {
 })
 
 function initMqtt(){
+  // subscribe to all neccessary channels
   client.subscribe([
     'work/#',
     'cancel/#',
@@ -31,8 +34,10 @@ function initMqtt(){
   ])
 
   client.on("message", function (topic, payload) {
+    // force string type
     payload = payload + ''
 
+    // to get the subtopics
     var topic_split = topic.split('/')
     var message_type = topic_split[0]
 
@@ -63,16 +68,20 @@ function initMqtt(){
       }
 
     } else if (message_type == 'heartbeat') {
+      // if we get a heartbeat update the time
       document.getElementById('last_heartbeat').textContent = new Date().toLocaleString();
 
     } else if (message_type == 'statistics') {
+      // currently not implemented
       console.log('statistics', topic_split, JSON.parse(payload))
 
     } else if (message_type == 'client') {
+      // we got a reward, yay!
       console.log('client', topic_split, JSON.parse(payload))
       rewardcounter++;
 
     } else if (message_type == 'cancel') {
+      // work is done, stop the working
       if (payload == is_working) {
         console.log('Currently working, cancel ' + payload)
         is_working = '';
@@ -96,7 +105,6 @@ function webgl(hash, callback) {
         setStatus('Calculated ' + n + ' frames...');
         if (is_working == '') {
           console.log('Cancelled')
-          setStatus('Waiting for work...');
           checkForWork()
           return true
         }
@@ -132,8 +140,6 @@ function generateWork(hash, callback) {
     document.getElementById('workcounter').textContent = workcounter;
     document.getElementById('rewardcounter').textContent = rewardcounter;
 
-    setStatus('Waiting for work...');
-
     callback(workValue);
   });
 }
@@ -154,6 +160,8 @@ function checkForWork() {
     });
   } else {
     console.log('Nothing in work cache')
+
+    setStatus('Waiting for work...');
   }
 }
 
@@ -168,13 +176,16 @@ form.addEventListener('submit', e => {
   if (inited) { return }
   inited = true;
 
+  // hide the payout address so it cannot be changed
+  document.getElementById("payoutaddress").style.display = "none";
+
+  // store the address globally
   payout_address = form.elements[0].value;
 
   console.log('Payout: ', payout_address)
 
+  // and let's start the party!
   checkForWork()
-
-  setStatus('Waiting for work...');
 
 }, false);
 

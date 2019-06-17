@@ -25,12 +25,13 @@ var lastWorkChart = new Chart(document.getElementById('lastWorkChart'), {
     responsive: true,
     scales: {
       yAxes: [{
+        display: true,
         ticks: {
-          beginAtZero: true,
-          scaleLabel: {
-            display: true,
-            labelString: 'Time in ms'
-          }
+          beginAtZero: true
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'Time in ms'
         }
       }]
     }
@@ -46,6 +47,8 @@ for (let i = 25; i > 0; i--) {
 }
 
 client.on("message", function (topic, payload) {
+  if(document.getElementById("enablegraph").checked == false) return
+
   payload = payload + ''
 
   var topic_split = topic.split('/')
