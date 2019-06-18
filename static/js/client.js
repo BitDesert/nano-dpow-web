@@ -3,7 +3,7 @@ const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
 var inited = false;
-var is_working = '';
+var active_work_hash = '';
 var workcounter = 0;
 var rewardcounter = 0;
 var payout_address = '';
@@ -52,21 +52,17 @@ function initMqtt(){
 
       console.log('work', work_type, block_hash, difficulty)
 
-      if (is_working || !inited) {
-        console.log('Got work, adding to work cache...');
-        work_cache.push({
-          block_hash: block_hash,
-          difficulty: difficulty,
-          work_type: work_type
-        })
+      const newWork = {
+        block_hash,
+        difficulty,
+        work_type
+      }
 
+      if (active_work_hash || !inited) {
+        console.log('Got work, adding to work cache...');
+        work_cache.push(newWork);
       } else {
-        is_working = block_hash;
-        generateWork(block_hash, work => {
-          returnWork(block_hash, work, work_type);
-          is_working = '';
-          checkForWork()
-        });
+        startWork(newWork);
       }
 
     } else if (message_type == 'heartbeat') {
@@ -84,9 +80,9 @@ function initMqtt(){
 
     } else if (message_type == 'cancel') {
       // work is done, stop the working
-      if (payload == is_working) {
+      if (payload == active_work_hash) {
         console.log('Currently working, cancel ' + payload)
-        is_working = '';
+        active_work_hash = '';
       } else if (work_cache.some(e => e.block_hash === payload)) {
         console.log('In work cache, removing ' + payload)
         work_cache = work_cache.filter(e => e.block_hash !== payload);
@@ -122,7 +118,7 @@ function webgl(hash, callback) {
     const workValue = webgl_pow.calculate(hash, callback,
       n => {
         setStatus('Calculated ' + n + ' frames...');
-        if (is_working == '') {
+        if (active_work_hash == '') {
           console.log('Cancelled')
           checkForWork()
           return true
@@ -184,13 +180,20 @@ function checkForWork() {
 
   work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
 
+  startWork(randomWork);
+}
+
+function startWork(requestedWork) {
   setStatus('Starting work generation...');
 
-  is_working = randomWork.block_hash;
-  generateWork(randomWork.block_hash, work => {
-    returnWork(randomWork.block_hash, work, randomWork.work_type);
-    is_working = '';
-    checkForWork()
+  const { block_hash, work_type } = requestedWork;
+
+  active_work_hash = block_hash;
+
+  generateWork(block_hash, work => {
+    returnWork(block_hash, work, work_type);
+    active_work_hash = '';
+    checkForWork();
   });
 }
 
