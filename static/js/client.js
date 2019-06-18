@@ -3,11 +3,12 @@ const form = document.forms[0];
 const status = document.getElementById('status');
 var socket;
 var inited = false;
-var is_working = '';
+var active_work_hash = '';
 var workcounter = 0;
 var rewardcounter = 0;
 var payout_address = '';
 var work_cache = [];
+var webgl_pow = null;
 
 // connect to mqtt/websocket server
 var client = mqtt.connect('mqtts://client:client@dpow.nanocenter.org/mqtt/')
@@ -16,6 +17,7 @@ client.on("connect", function () {
   console.log('MQTT connected')
   document.getElementById('connection_status').textContent = 'Connected';
 
+  initWebGL();
   initMqtt();
 })
 
@@ -50,21 +52,17 @@ function initMqtt(){
 
       console.log('work', work_type, block_hash, difficulty)
 
-      if (is_working || !inited) {
-        console.log('Got work, adding to work cache...');
-        work_cache.push({
-          block_hash: block_hash,
-          difficulty: difficulty,
-          work_type: work_type
-        })
+      const newWork = {
+        block_hash,
+        difficulty,
+        work_type
+      }
 
+      if (active_work_hash || !inited) {
+        console.log('Got work, adding to work cache...');
+        work_cache.push(newWork);
       } else {
-        is_working = block_hash;
-        generateWork(block_hash, work => {
-          returnWork(block_hash, work, work_type);
-          is_working = '';
-          checkForWork()
-        });
+        startWork(newWork);
       }
 
     } else if (message_type == 'heartbeat') {
@@ -82,9 +80,9 @@ function initMqtt(){
 
     } else if (message_type == 'cancel') {
       // work is done, stop the working
-      if (payload == is_working) {
+      if (payload == active_work_hash) {
         console.log('Currently working, cancel ' + payload)
-        is_working = '';
+        active_work_hash = '';
       } else if (work_cache.some(e => e.block_hash === payload)) {
         console.log('In work cache, removing ' + payload)
         work_cache = work_cache.filter(e => e.block_hash !== payload);
@@ -98,12 +96,29 @@ function initMqtt(){
 
 }
 
+function initWebGL() {
+  if( (webgl_pow != null) && (webgl_pow.available === true) ) {
+    return
+  }
+
+  try {
+    webgl_pow = NanoWebglPow()
+  } catch (error) {
+    if (error.message === 'webgl2_required')
+      setStatus('WebGL 2 is required to calculate Proof of Work');
+    else
+      setStatus('An error has occurred');
+
+    throw error;
+  }
+}
+
 function webgl(hash, callback) {
   try {
-    const workValue = NanoWebglPow(hash, callback,
+    const workValue = webgl_pow.calculate(hash, callback,
       n => {
         setStatus('Calculated ' + n + ' frames...');
-        if (is_working == '') {
+        if (active_work_hash == '') {
           console.log('Cancelled')
           checkForWork()
           return true
@@ -111,8 +126,8 @@ function webgl(hash, callback) {
       }
     );
   } catch (error) {
-    if (error.message === 'webgl2_required')
-      setStatus('WebGL 2 is required for this demo');
+    if (error.message === 'instance_unavailable')
+      setStatus('WebGL PoW instance has not been initialized');
     else if (error.message === 'invalid_hash')
       setStatus('Block hash must be 64 character hex string');
     else
@@ -145,32 +160,41 @@ function generateWork(hash, callback) {
 }
 
 function checkForWork() {
-  if (work_cache.length > 0) {
-    console.log('Found something in work cache, starting...')
+  initWebGL();
 
-    var ondemand_work = work_cache.filter(e => e.work_type == 'ondemand');
-    if(ondemand_work.length > 0){
-      console.log('We have ondemand work, prioritize it')
-      var randomWork = ondemand_work[Math.floor(Math.random() * ondemand_work.length)];
-    } else {
-      var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
-    }
-
-    work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
-
-    setStatus('Starting work generation...');
-
-    is_working = randomWork.block_hash;
-    generateWork(randomWork.block_hash, work => {
-      returnWork(randomWork.block_hash, work, randomWork.work_type);
-      is_working = '';
-      checkForWork()
-    });
-  } else {
+  if (work_cache.length < 1) {
     console.log('Nothing in work cache')
-
     setStatus('Waiting for work...');
+    return
   }
+
+  console.log('Found something in work cache, starting...')
+
+  var ondemand_work = work_cache.filter(e => e.work_type == 'ondemand');
+  if(ondemand_work.length > 0){
+    console.log('We have ondemand work, prioritize it')
+    var randomWork = ondemand_work[Math.floor(Math.random() * ondemand_work.length)];
+  } else {
+    var randomWork = work_cache[Math.floor(Math.random() * work_cache.length)];
+  }
+
+  work_cache = work_cache.filter(e => e.block_hash !== randomWork.block_hash);
+
+  startWork(randomWork);
+}
+
+function startWork(requestedWork) {
+  setStatus('Starting work generation...');
+
+  const { block_hash, work_type } = requestedWork;
+
+  active_work_hash = block_hash;
+
+  generateWork(block_hash, work => {
+    returnWork(block_hash, work, work_type);
+    active_work_hash = '';
+    checkForWork();
+  });
 }
 
 function setStatus(text) {
