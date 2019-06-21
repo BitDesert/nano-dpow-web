@@ -82,13 +82,13 @@ client.on("message", function (topic, payload) {
         var dataset = 1;
       }
 
+      //lastWorkChart.data.labels.push(payload.slice(-4))
+      lastWorkChart.data.datasets[dataset].data.push(datediff)
+      
       if (lastWorkChart.data.datasets[dataset].data.length > 25) {
         //lastWorkChart.data.labels.shift();
         lastWorkChart.data.datasets[dataset].data.shift();
       }
-
-      //lastWorkChart.data.labels.push(payload.slice(-4))
-      lastWorkChart.data.datasets[dataset].data.push(datediff)
 
       lastWorkChart.update();
 
